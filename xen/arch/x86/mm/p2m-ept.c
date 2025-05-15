@@ -803,7 +803,7 @@ bool_t ept_handle_misconfig(uint64_t gpa)
 static int cf_check
 ept_set_entry(struct p2m_domain *p2m, gfn_t gfn_, mfn_t mfn,
               unsigned int order, p2m_type_t p2mt, p2m_access_t p2ma,
-              int sve)
+              int sve, bool grant)
 {
     ept_entry_t *table, *ept_entry = NULL;
     unsigned long gfn = gfn_x(gfn_);

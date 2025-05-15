@@ -579,7 +579,7 @@ decrease_reservation(struct domain *d, gfn_t gfn, unsigned int order)
          * we're done.
          */
         int rc = p2m_set_entry(p2m, gfn, INVALID_MFN, order, p2m_invalid,
-                               p2m->default_access);
+                               p2m->default_access, false);
 
         if ( rc )
         {
@@ -641,7 +641,7 @@ decrease_reservation(struct domain *d, gfn_t gfn, unsigned int order)
         {
             /* This shouldn't be able to fail */
             if ( p2m_set_entry(p2m, gfn_add(gfn, i), INVALID_MFN, cur_order,
-                               p2m_invalid, p2m->default_access) )
+                               p2m_invalid, p2m->default_access, false) )
             {
                 ASSERT_UNREACHABLE();
                 domain_crash(d);
@@ -670,7 +670,7 @@ decrease_reservation(struct domain *d, gfn_t gfn, unsigned int order)
 
             /* This shouldn't be able to fail */
             if ( p2m_set_entry(p2m, gfn_add(gfn, i), INVALID_MFN, cur_order,
-                               p2m_invalid, p2m->default_access) )
+                               p2m_invalid, p2m->default_access, false) )
             {
                 ASSERT_UNREACHABLE();
                 domain_crash(d);
@@ -827,7 +827,7 @@ p2m_pod_zero_check_superpage(struct p2m_domain *p2m, gfn_t gfn)
 
     /* Try to remove the page, restoring old mapping if it fails. */
     if ( p2m_set_entry(p2m, gfn, INVALID_MFN, PAGE_ORDER_2M,
-                       p2m_populate_on_demand, p2m->default_access) )
+                       p2m_populate_on_demand, p2m->default_access, false) )
         goto out;
 
     p2m_tlb_flush_sync(p2m);
@@ -898,7 +898,7 @@ out_reset:
      * the domain should be the safest way of making sure we don't leak memory.
      */
     if ( reset && p2m_set_entry(p2m, gfn, mfn0, PAGE_ORDER_2M,
-                                type0, p2m->default_access) )
+                                type0, p2m->default_access, false) )
     {
         ASSERT_UNREACHABLE();
         domain_crash(d);
@@ -968,7 +968,7 @@ p2m_pod_zero_check(struct p2m_domain *p2m, const gfn_t *gfns, unsigned int count
 
         /* Try to remove the page, restoring old mapping if it fails. */
         if ( p2m_set_entry(p2m, gfns[i], INVALID_MFN, PAGE_ORDER_4K,
-                           p2m_populate_on_demand, p2m->default_access) )
+                           p2m_populate_on_demand, p2m->default_access, false) )
             goto skip;
 
         /*
@@ -982,7 +982,7 @@ p2m_pod_zero_check(struct p2m_domain *p2m, const gfn_t *gfns, unsigned int count
              * be able to fail.  If it does, crashing the domain should be safe.
              */
             if ( p2m_set_entry(p2m, gfns[i], mfns[i], PAGE_ORDER_4K,
-                               types[i], p2m->default_access) )
+                               types[i], p2m->default_access, false) )
             {
                 ASSERT_UNREACHABLE();
                 domain_crash(d);
@@ -1024,7 +1024,7 @@ p2m_pod_zero_check(struct p2m_domain *p2m, const gfn_t *gfns, unsigned int count
              * be able to fail.  If it does, crashing the domain should be safe.
              */
             if ( p2m_set_entry(p2m, gfns[i], mfns[i], PAGE_ORDER_4K,
-                               types[i], p2m->default_access) )
+                               types[i], p2m->default_access, false) )
             {
                 ASSERT_UNREACHABLE();
                 domain_crash(d);
@@ -1221,7 +1221,7 @@ p2m_pod_demand_populate(struct p2m_domain *p2m, gfn_t gfn,
          * may need to promote its locking from gfn->1g superpage
          */
         return !p2m_set_entry(p2m, gfn_aligned, INVALID_MFN, PAGE_ORDER_2M,
-                              p2m_populate_on_demand, p2m->default_access);
+                              p2m_populate_on_demand, p2m->default_access, false);
     }
 
     p2m->defer_nested_flush = true;
@@ -1256,7 +1256,7 @@ p2m_pod_demand_populate(struct p2m_domain *p2m, gfn_t gfn,
     BUG_ON((mfn_x(mfn) & ((1UL << order) - 1)) != 0);
 
     if ( p2m_set_entry(p2m, gfn_aligned, mfn, order, p2m_ram_rw,
-                       p2m->default_access) )
+                       p2m->default_access, false) )
     {
         p2m_pod_cache_add(p2m, p, order);
         goto out_fail;
@@ -1316,7 +1316,7 @@ remap_and_retry:
      * need promoting the gfn lock from gfn->2M superpage.
      */
     if ( p2m_set_entry(p2m, gfn_aligned, INVALID_MFN, PAGE_ORDER_4K,
-                       p2m_populate_on_demand, p2m->default_access) )
+                       p2m_populate_on_demand, p2m->default_access, false) )
         return false;
 
     if ( tb_init_done )
@@ -1380,7 +1380,7 @@ mark_populate_on_demand(struct domain *d, unsigned long gfn_l,
 
     /* Now, actually do the two-way mapping */
     rc = p2m_set_entry(p2m, gfn, INVALID_MFN, order,
-                       p2m_populate_on_demand, p2m->default_access);
+                       p2m_populate_on_demand, p2m->default_access, false);
     if ( rc == 0 )
     {
         p2m->pod.entry_count += 1UL << order;

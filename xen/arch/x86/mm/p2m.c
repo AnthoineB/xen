@@ -400,7 +400,7 @@ struct page_info *p2m_get_page_from_gfn(
 
 /* Returns: 0 for success, -errno for failure */
 int p2m_set_entry(struct p2m_domain *p2m, gfn_t gfn, mfn_t mfn,
-                  unsigned int page_order, p2m_type_t p2mt, p2m_access_t p2ma)
+                  unsigned int page_order, p2m_type_t p2mt, p2m_access_t p2ma, bool grant)
 {
     bool hap = hap_enabled(p2m->domain);
     unsigned long todo = 1ul << page_order;
@@ -419,7 +419,7 @@ int p2m_set_entry(struct p2m_domain *p2m, gfn_t gfn, mfn_t mfn,
                                 (!hap || hap_has_2mb))
                                ? PAGE_ORDER_2M : PAGE_ORDER_4K;
 
-        set_rc = p2m->set_entry(p2m, gfn, mfn, order, p2mt, p2ma, -1);
+        set_rc = p2m->set_entry(p2m, gfn, mfn, order, p2mt, p2ma, -1, grant);
         if ( set_rc )
             rc = set_rc;
 
@@ -549,7 +549,7 @@ p2m_remove_entry(struct p2m_domain *p2m, gfn_t gfn, mfn_t mfn,
     ioreq_request_mapcache_invalidate(p2m->domain);
 
     rc = p2m_set_entry(p2m, gfn, INVALID_MFN, page_order, p2m_invalid,
-                       p2m->default_access);
+                       p2m->default_access, false);
     if ( likely(!rc) || !mfn_valid(mfn) )
         return rc;
 
@@ -593,7 +593,7 @@ p2m_remove_page(struct domain *d, gfn_t gfn, mfn_t mfn,
 
 int
 p2m_add_page(struct domain *d, gfn_t gfn, mfn_t mfn,
-             unsigned int page_order, p2m_type_t t)
+             unsigned int page_order, p2m_type_t t, bool grant)
 {
     struct p2m_domain *p2m = p2m_get_hostp2m(d);
     unsigned long i;
@@ -724,7 +724,7 @@ p2m_add_page(struct domain *d, gfn_t gfn, mfn_t mfn,
     }
 
     /* Now, actually do the two-way mapping */
-    rc = p2m_set_entry(p2m, gfn, mfn, page_order, t, p2m->default_access);
+    rc = p2m_set_entry(p2m, gfn, mfn, page_order, t, p2m->default_access, grant);
     if ( likely(!rc) )
     {
         if ( !p2m_is_grant(t) )
@@ -799,7 +799,7 @@ int p2m_change_type_one(struct domain *d, unsigned long gfn_l,
     mfn = p2m->get_entry(p2m, gfn, &pt, &a, 0, NULL, NULL);
     rc = likely(pt == ot)
          ? p2m_set_entry(p2m, gfn, mfn, PAGE_ORDER_4K, nt,
-                         p2m->default_access)
+                         p2m->default_access, false)
          : -EBUSY;
 
     gfn_unlock(p2m, gfn, 0);
@@ -1061,7 +1061,7 @@ static int set_typed_p2m_entry(struct domain *d, unsigned long gfn_l,
     }
 
     P2M_DEBUG("set %d %lx %lx\n", gfn_p2mt, gfn_l, mfn_x(mfn));
-    rc = p2m_set_entry(p2m, gfn, mfn, order, gfn_p2mt, access);
+    rc = p2m_set_entry(p2m, gfn, mfn, order, gfn_p2mt, access, false);
     if ( unlikely(rc) )
     {
         gdprintk(XENLOG_ERR, "p2m_set_entry: %#lx:%u -> %d (0x%"PRI_mfn")\n",
@@ -1189,7 +1189,7 @@ static int clear_mmio_p2m_entry(struct domain *d, unsigned long gfn_l,
                  "no mapping between mfn %08lx and gfn %08lx\n",
                  mfn_x(mfn), gfn_l);
     rc = p2m_set_entry(p2m, gfn, INVALID_MFN, order, p2m_invalid,
-                       p2m->default_access);
+                       p2m->default_access, false);
 
  out:
     gfn_unlock(p2m, gfn, order);
@@ -1219,7 +1219,7 @@ int p2m_add_identity_entry(struct domain *d, unsigned long gfn_l,
 
     if ( p2mt == p2m_invalid || p2mt == p2m_mmio_dm )
         ret = p2m_set_entry(p2m, gfn, _mfn(gfn_l), PAGE_ORDER_4K,
-                            p2m_mmio_direct, p2ma);
+                            p2m_mmio_direct, p2ma, false);
     else if ( mfn_x(mfn) == gfn_l && p2mt == p2m_mmio_direct && a == p2ma )
         ret = 0;
     else
@@ -1259,7 +1259,7 @@ int p2m_remove_identity_entry(struct domain *d, unsigned long gfn_l)
     if ( p2mt == p2m_mmio_direct && mfn_x(mfn) == gfn_l )
     {
         ret = p2m_set_entry(p2m, gfn, INVALID_MFN, PAGE_ORDER_4K,
-                            p2m_invalid, p2m->default_access);
+                            p2m_invalid, p2m->default_access, false);
         gfn_unlock(p2m, gfn, 0);
     }
     else
@@ -1307,7 +1307,7 @@ int set_shared_p2m_entry(struct domain *d, unsigned long gfn_l, mfn_t mfn)
 
     P2M_DEBUG("set shared %lx %lx\n", gfn_l, mfn_x(mfn));
     rc = p2m_set_entry(p2m, gfn, mfn, PAGE_ORDER_4K, p2m_ram_shared,
-                       p2m->default_access);
+                       p2m->default_access, false);
     gfn_unlock(p2m, gfn, 0);
     if ( rc )
         gdprintk(XENLOG_ERR,
@@ -1761,7 +1761,7 @@ int altp2m_get_effective_entry(struct p2m_domain *ap2m, gfn_t gfn, mfn_t *mfn,
             gfn_t gfn_aligned = _gfn(gfn_x(gfn) & mask);
             mfn_t mfn_aligned = _mfn(mfn_x(*mfn) & mask);
 
-            rc = ap2m->set_entry(ap2m, gfn_aligned, mfn_aligned, page_order, *t, *a, 1);
+            rc = ap2m->set_entry(ap2m, gfn_aligned, mfn_aligned, page_order, *t, *a, 1, false);
             if ( rc )
                 return rc;
         }
@@ -1860,7 +1860,7 @@ bool p2m_altp2m_get_or_propagate(struct p2m_domain *ap2m, unsigned long gfn_l,
     amfn = _mfn(mfn_x(*mfn) & mask);
     gfn = _gfn(gfn_l & mask);
 
-    rc = p2m_set_entry(ap2m, gfn, amfn, cur_order, *p2mt, *p2ma);
+    rc = p2m_set_entry(ap2m, gfn, amfn, cur_order, *p2mt, *p2ma, false);
     p2m_unlock(ap2m);
 
     if ( rc )
@@ -2119,7 +2119,7 @@ int p2m_change_altp2m_gfn(struct domain *d, unsigned int idx,
         goto out;
 
     if ( !ap2m->set_entry(ap2m, old_gfn, mfn, PAGE_ORDER_4K, t, a,
-                          (current->domain != d)) )
+                          (current->domain != d), false) )
     {
         rc = 0;
 
@@ -2189,7 +2189,7 @@ int p2m_altp2m_propagate_change(struct domain *d, gfn_t gfn,
         else if ( !mfn_eq(get_gfn_type_access(p2m, gfn_x(gfn), &t, &a, 0,
                                               NULL), INVALID_MFN) )
         {
-            int rc = p2m_set_entry(p2m, gfn, mfn, page_order, p2mt, p2ma);
+            int rc = p2m_set_entry(p2m, gfn, mfn, page_order, p2mt, p2ma, false);
 
             /* Best effort: Don't bail on error. */
             if ( !ret )
@@ -2432,6 +2432,7 @@ int xenmem_add_to_physmap_one(
     int rc = 0;
     mfn_t mfn = INVALID_MFN;
     p2m_type_t p2mt;
+    bool grant = false;
 
     switch ( space )
     {
@@ -2441,6 +2442,7 @@ int xenmem_add_to_physmap_one(
         break;
 
     case XENMAPSPACE_grant_table:
+        grant = true;
         rc = gnttab_map_frame(d, idx, gpfn, &mfn);
         if ( rc )
             return rc;
@@ -2517,7 +2519,7 @@ int xenmem_add_to_physmap_one(
 
     /* Map at new location. */
     if ( !rc )
-        rc = p2m_add_page(d, gpfn, mfn, PAGE_ORDER_4K, p2m_ram_rw);
+        rc = p2m_add_page(d, gpfn, mfn, PAGE_ORDER_4K, p2m_ram_rw, grant);
 
  put_all:
     put_gfn(d, gfn_x(gpfn));
@@ -2605,7 +2607,7 @@ int p2m_set_suppress_ve_multi(struct domain *d,
 
         if ( !err && (err = p2m->set_entry(p2m, _gfn(start), mfn,
                                            PAGE_ORDER_4K, t, a,
-                                           sve->suppress_ve)) &&
+                                           sve->suppress_ve, false)) &&
              !sve->first_error )
         {
             sve->first_error_gfn = start; /* Save the gfn of the first error */

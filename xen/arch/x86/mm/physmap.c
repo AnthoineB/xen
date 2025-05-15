@@ -62,7 +62,7 @@ guest_physmap_add_page(struct domain *d, gfn_t gfn, mfn_t mfn,
         return 0;
     }
 
-    return p2m_add_page(d, gfn, mfn, page_order, p2m_ram_rw);
+    return p2m_add_page(d, gfn, mfn, page_order, p2m_ram_rw, false);
 }
 
 int

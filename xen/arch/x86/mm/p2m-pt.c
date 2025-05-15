@@ -96,6 +96,7 @@ static unsigned long p2m_type_to_flags(const struct p2m_domain *p2m,
         return flags | P2M_BASE_FLAGS | _PAGE_RW;
     case p2m_grant_map_rw:
     case p2m_map_foreign:
+        printk(XENLOG_WARNING "p2m type %d\n", t);
         return flags | P2M_BASE_FLAGS | _PAGE_RW | _PAGE_NX_BIT;
     case p2m_mmio_direct:
         if ( !rangeset_contains_singleton(mmio_ro_ranges, mfn_x(mfn)) )
@@ -576,7 +577,7 @@ static void check_entry(mfn_t mfn, p2m_type_t new, p2m_type_t old,
 static int cf_check
 p2m_pt_set_entry(struct p2m_domain *p2m, gfn_t gfn_, mfn_t mfn,
                  unsigned int page_order, p2m_type_t p2mt, p2m_access_t p2ma,
-                 int sve)
+                 int sve, bool grant)
 {
     struct domain *d = p2m->domain;
     /* XXX -- this might be able to be faster iff current->domain == d */
@@ -706,6 +707,9 @@ p2m_pt_set_entry(struct p2m_domain *p2m, gfn_t gfn_, mfn_t mfn,
         else
             entry_content = l1e_empty();
 
+        if (grant) {
+            printk("%s:%d: pte 0x%lx\n", __func__, __LINE__, entry_content.l1);
+        }
         /* level 1 entry */
         rc = write_p2m_entry(p2m, gfn, p2m_entry, entry_content, 1);
         /* NB: write_p2m_entry() handles tlb flushes properly */

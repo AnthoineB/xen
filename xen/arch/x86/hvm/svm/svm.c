@@ -1710,6 +1710,9 @@ const struct hvm_function_table * __init start_svm(void)
     svm_function_table.hap_capabilities = HVM_HAP_SUPERPAGE_2MB |
         (cpu_has_page1gb ? HVM_HAP_SUPERPAGE_1GB : 0);
 
+    if (svm_function_table.hap_supported)
+        setup_npt_dump();
+
     return &svm_function_table;
 }
 

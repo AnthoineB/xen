@@ -250,7 +250,7 @@ struct p2m_domain {
                                     mfn_t mfn, unsigned int page_order,
                                     p2m_type_t p2mt,
                                     p2m_access_t p2ma,
-                                    int sve);
+                                    int sve, bool grant);
     mfn_t              (*get_entry)(struct p2m_domain *p2m,
                                     gfn_t gfn,
                                     p2m_type_t *p2mt,
@@ -612,7 +612,7 @@ void p2m_final_teardown(struct domain *d);
 
 /* Add/remove a page to/from a domain's p2m table. */
 int p2m_add_page(struct domain *d, gfn_t gfn, mfn_t mfn,
-                 unsigned int page_order, p2m_type_t t);
+                 unsigned int page_order, p2m_type_t t, bool grant);
 int p2m_remove_page(struct domain *d, gfn_t gfn, mfn_t mfn,
                     unsigned int page_order);
 
@@ -779,7 +779,7 @@ void p2m_free_ptp(struct p2m_domain *p2m, struct page_info *pg);
  * a call to put_gfn afterwards/ */
 int __must_check p2m_set_entry(struct p2m_domain *p2m, gfn_t gfn, mfn_t mfn,
                                unsigned int page_order, p2m_type_t p2mt,
-                               p2m_access_t p2ma);
+                               p2m_access_t p2ma, bool grant);
 
 #if defined(CONFIG_HVM)
 /* Set up function pointers for PT implementation: only for use by p2m code */

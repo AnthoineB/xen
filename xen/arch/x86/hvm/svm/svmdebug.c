@@ -17,6 +17,7 @@
  */
 
 #include <xen/sched.h>
+#include <xen/keyhandler.h>
 #include <asm/processor.h>
 #include <asm/msr-index.h>
 #include <asm/hvm/svm/svmdebug.h>
@@ -174,6 +175,15 @@ bool svm_vmcb_isvalid(const char *from, const struct vmcb_struct *vmcb,
 
 #undef PRINTF
     return ret;
+}
+
+static void cf_check npt_dump_p2m_table(unsigned char ch)
+{
+}
+
+void setup_npt_dump(void)
+{
+    register_keyhandler('D', npt_dump_p2m_table, "dump SVM NPT tables", 0);
 }
 
 /*

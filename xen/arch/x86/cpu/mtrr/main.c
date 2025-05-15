@@ -565,6 +565,8 @@ void __init mtrr_bp_init(void)
 		set_num_var_ranges();
 		init_table();
 		get_mtrr_state();
+
+                setup_mtrr_dump();
 	}
 }
 

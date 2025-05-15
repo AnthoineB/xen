@@ -39,8 +39,9 @@ int create_grant_p2m_mapping(uint64_t addr, mfn_t frame,
         p2mt = p2m_grant_map_ro;
     else
         p2mt = p2m_grant_map_rw;
+    printk(XENLOG_WARNING "set p2m type %d\n", p2mt);
     rc = p2m_add_page(current->domain, _gfn(addr >> PAGE_SHIFT),
-                      frame, PAGE_ORDER_4K, p2mt);
+                      frame, PAGE_ORDER_4K, p2mt, true);
     if ( rc )
         return GNTST_general_error;
     else

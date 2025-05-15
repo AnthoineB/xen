@@ -149,6 +149,8 @@ static int construct_vmcb(struct vcpu *v)
         vmcb->_g_pat = MSR_IA32_CR_PAT_RESET; /* guest PAT */
         vmcb->_h_cr3 = pagetable_get_paddr(
             p2m_get_pagetable(p2m_get_hostp2m(v->domain)));
+        printk(KERN_WARNING "vmcb->_h_cr3 0x%lx\n", vmcb->_h_cr3);
+        printk(KERN_WARNING "vmcb->_g_pat 0x%lx\n", vmcb->_g_pat);
 
         /* No point in intercepting CR3 reads/writes. */
         vmcb->_cr_intercepts &=

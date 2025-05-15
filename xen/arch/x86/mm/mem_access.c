@@ -166,7 +166,7 @@ bool p2m_mem_access_check(paddr_t gpa, unsigned long gla,
 
     if ( npfec.write_access && p2ma == p2m_access_rx2rw )
     {
-        rc = p2m->set_entry(p2m, gfn, mfn, PAGE_ORDER_4K, p2mt, p2m_access_rw, -1);
+        rc = p2m->set_entry(p2m, gfn, mfn, PAGE_ORDER_4K, p2mt, p2m_access_rw, -1, false);
         ASSERT(rc == 0);
         gfn_unlock(p2m, gfn, 0);
         return true;
@@ -175,7 +175,7 @@ bool p2m_mem_access_check(paddr_t gpa, unsigned long gla,
     {
         ASSERT(npfec.write_access || npfec.read_access || npfec.insn_fetch);
         rc = p2m->set_entry(p2m, gfn, mfn, PAGE_ORDER_4K,
-                            p2mt, p2m_access_rwx, -1);
+                            p2mt, p2m_access_rwx, -1, false);
         ASSERT(rc == 0);
     }
     gfn_unlock(p2m, gfn, 0);
@@ -202,7 +202,7 @@ bool p2m_mem_access_check(paddr_t gpa, unsigned long gla,
                  * restrictions.  This set must succeed: we have the
                  * gfn locked and just did a successful get_entry(). */
                 rc = p2m->set_entry(p2m, gfn, mfn, PAGE_ORDER_4K,
-                                    p2mt, p2m_access_rwx, -1);
+                                    p2mt, p2m_access_rwx, -1, false);
                 ASSERT(rc == 0);
             }
             gfn_unlock(p2m, gfn, 0);
@@ -279,7 +279,7 @@ int p2m_set_altp2m_mem_access(struct domain *d, struct p2m_domain *hp2m,
      * Inherit the old suppress #VE bit value if it is already set, or set it
      * to 1 otherwise
      */
-    return ap2m->set_entry(ap2m, gfn, mfn, PAGE_ORDER_4K, t, a, -1);
+    return ap2m->set_entry(ap2m, gfn, mfn, PAGE_ORDER_4K, t, a, -1, false);
 }
 
 static int set_mem_access(struct domain *d, struct p2m_domain *p2m,
@@ -302,7 +302,7 @@ static int set_mem_access(struct domain *d, struct p2m_domain *p2m,
         mfn_t mfn = p2m_get_gfn_type_access(p2m, gfn, &t, &_a,
                                             P2M_ALLOC, NULL, false);
 
-        rc = p2m->set_entry(p2m, gfn, mfn, PAGE_ORDER_4K, t, a, -1);
+        rc = p2m->set_entry(p2m, gfn, mfn, PAGE_ORDER_4K, t, a, -1, false);
     }
 
     return rc;

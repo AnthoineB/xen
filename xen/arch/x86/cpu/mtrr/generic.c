@@ -12,6 +12,7 @@
 #include <asm/msr.h>
 #include <asm/system.h>
 #include <asm/cpufeature.h>
+#include <asm/xstate.h>
 #include "mtrr.h"
 
 static const struct fixed_range_block {
@@ -112,7 +113,8 @@ void __init get_mtrr_state(void)
 	get_fixed_ranges(mtrr_state.fixed_ranges);
 
 	rdmsrl(MSR_MTRRdefType, msr_content);
-	mtrr_state.def_type = (msr_content & 0xff);
+	mtrr_state.def_type = (msr_content & 0xff) | MTRR_TYPE_WRBACK;
+        printk(XENLOG_WARNING "%s: set def_type %x\n", __func__, mtrr_state.def_type);
 	mtrr_state.enabled = MASK_EXTR(msr_content, MTRRdefType_E);
 	mtrr_state.fixed_enabled = MASK_EXTR(msr_content, MTRRdefType_FE);
 
@@ -180,7 +182,7 @@ static void __init print_fixed(unsigned int base, unsigned int step,
 	}
 }
 
-static void __init print_mtrr_state(const char *level)
+void print_mtrr_state(const char *level)
 {
 	unsigned int i;
 	int width;
@@ -236,7 +238,13 @@ static void __init print_mtrr_state(const char *level)
 void __init mtrr_state_warn(void)
 {
 	unsigned long mask = smp_changes_mask;
+        unsigned long pat;
 
+        uint64_t xcr0 = get_xcr0();
+        rdmsrl(0x277, pat);
+
+        printk(KERN_WARNING "CR0 0x%lx\n", xcr0);
+        printk(KERN_WARNING "PAT 0x%lx\n", pat);
 	if (mtrr_show)
 		print_mtrr_state(mask ? KERN_WARNING : "");
 	if (!mask)
@@ -421,6 +429,8 @@ static unsigned long set_mtrr_state(void)
 	if ((deftype & 0xff) != mtrr_state.def_type
 	    || MASK_EXTR(deftype, MTRRdefType_E) != mtrr_state.enabled
 	    || MASK_EXTR(deftype, MTRRdefType_FE) != mtrr_state.fixed_enabled) {
+                printk(XENLOG_WARNING "%s: change mtrr 0x%lx, 0x%x\n", __func__, deftype,
+                        mtrr_state.def_type);
 		deftype = (deftype & ~0xcff) | mtrr_state.def_type |
 		          MASK_INSR(mtrr_state.enabled, MTRRdefType_E) |
 		          MASK_INSR(mtrr_state.fixed_enabled, MTRRdefType_FE);
@@ -471,9 +481,11 @@ static bool prepare_set(void)
 
 	/*  Save MTRR state */
 	rdmsrl(MSR_MTRRdefType, deftype);
+	deftype = (deftype & ~0xff) | MTRR_TYPE_WRBACK;
 
 	/*  Disable MTRRs, and set the default type to uncached  */
 	mtrr_wrmsr(MSR_MTRRdefType, deftype & ~0xcff);
+        printk(XENLOG_WARNING "%s: set def_type 0x%lx\n", __func__, deftype);
 
 	/* Again, only flush caches if we have to. */
 	alternative("wbinvd", "", X86_FEATURE_XEN_SELFSNOOP);
@@ -485,6 +497,7 @@ static void post_set(bool pge)
 {
 	/* Intel (P6) standard MTRRs */
 	mtrr_wrmsr(MSR_MTRRdefType, deftype);
+        printk(XENLOG_WARNING "%s: set def_type 0x%lx\n", __func__, deftype);
 
 	/*  Enable caches  */
 	write_cr0(read_cr0() & ~X86_CR0_CD);
@@ -521,6 +534,7 @@ void mtrr_set_all(void)
 			set_bit(count, &smp_changes_mask);
 		mask >>= 1;
 	}
+        print_mtrr_state(KERN_WARNING);
 }
 
 void mtrr_set(

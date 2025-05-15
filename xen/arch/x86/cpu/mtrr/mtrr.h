@@ -24,4 +24,5 @@ extern u64 size_or_mask, size_and_mask;
 
 extern unsigned int num_var_ranges;
 
+void setup_mtrr_dump(void);
 void mtrr_state_warn(void);

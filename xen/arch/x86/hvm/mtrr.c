@@ -17,6 +17,7 @@
  */
 
 #include <xen/domain_page.h>
+#include <xen/keyhandler.h>
 #include <asm/e820.h>
 #include <asm/iocap.h>
 #include <asm/paging.h>
@@ -128,6 +129,7 @@ int hvm_vcpu_cacheattr_init(struct vcpu *v)
                                                   MTRRcap_VCNT)
                                       : MTRR_VCNT;
 
+    printk(XENLOG_WARNING "mtrr_state.def_type %u\n", mtrr_state.def_type);
     if ( num_var_ranges > MTRR_VCNT_MAX )
     {
         ASSERT(is_hardware_domain(v->domain));
@@ -415,6 +417,7 @@ bool_t mtrr_def_type_msr_set(struct domain *d, struct mtrr_state *m,
          m->def_type != def_type )
     {
         m->enabled = enabled;
+        printk(XENLOG_WARNING "%s: set def_type %u\n", __func__, def_type);
         m->def_type = def_type;
         m->fixed_enabled = fixed_enabled;
         memory_type_changed(d);
@@ -453,6 +456,7 @@ bool_t mtrr_var_range_msr_set(
     uint64_t msr_mask;
     uint64_t *var_range_base = (uint64_t*)m->var_ranges;
 
+    //print_mtrr_state(KERN_WARNING);
     index = msr - MSR_IA32_MTRR_PHYSBASE(0);
     if ( (index / 2) >= MASK_EXTR(m->mtrr_cap, MTRRcap_VCNT) )
     {
@@ -486,6 +490,7 @@ bool_t mtrr_var_range_msr_set(
     if ( m->enabled )
         memory_type_changed(d);
 
+    //print_mtrr_state(KERN_WARNING);
     return 1;
 }
 
@@ -802,6 +807,41 @@ void memory_type_changed(struct domain *d)
         p2m_memory_type_changed(d);
         flush_all(FLUSH_CACHE);
     }
+}
+
+static void cf_check mtrr_dump(unsigned char ch)
+{
+    struct domain *d;
+    struct vcpu *v;
+
+    printk("*********** MTRR Registers **************\n");
+
+    rcu_read_lock(&domlist_read_lock);
+
+    for_each_domain ( d )
+    {
+        printk("\n>>> Domain %d <<<\n", d->domain_id);
+        for_each_vcpu ( d, v )
+        {
+            if ( !v->is_initialised )
+            {
+                printk("\tVCPU %u: not initialized\n", v->vcpu_id);
+                continue;
+            }
+            printk("\tVCPU %d\n", v->vcpu_id);
+            print_mtrr_state(KERN_INFO);
+            break;
+        }
+    }
+
+    rcu_read_unlock(&domlist_read_lock);
+
+    printk("**************************************\n");
+}
+
+void setup_mtrr_dump(void)
+{
+    register_keyhandler('T', mtrr_dump, "dump MTRR registers", 0);
 }
 
 /*

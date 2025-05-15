@@ -100,4 +100,5 @@ extern bool_t pat_msr_set(uint64_t *pat, uint64_t msr);
 bool is_var_mtrr_overlapped(const struct mtrr_state *m);
 bool mtrr_pat_not_equal(const struct vcpu *vd, const struct vcpu *vs);
 
+void print_mtrr_state(const char *level);
 #endif /* __ASM_X86_MTRR_H__ */

@@ -1876,7 +1876,7 @@ int hvm_hap_nested_page_fault(paddr_t gpa, unsigned long gla,
         if ( page_order > 0 && npfec.insn_fetch && npfec.present && !violation )
         {
             int res = p2m_set_entry(p2m, _gfn(gfn), mfn, PAGE_ORDER_4K,
-                                    p2mt, p2ma);
+                                    p2mt, p2ma, false);
 
             if ( res )
                 printk(XENLOG_ERR "Failed to shatter gfn %"PRI_gfn": %d\n",
@@ -3568,6 +3568,8 @@ int hvm_msr_read_intercept(unsigned int msr, uint64_t *msr_content)
                        MASK_INSR(v->arch.hvm.mtrr.enabled, MTRRdefType_E) |
                        MASK_INSR(v->arch.hvm.mtrr.fixed_enabled,
                                  MTRRdefType_FE);
+        if (v->vcpu_id == 0)
+            printk("HVM: read MSR_MTRRdefType 0x%lx\n", *msr_content);
         break;
     case MSR_MTRRfix64K_00000:
         if ( !d->arch.cpuid->basic.mtrr )
@@ -3599,6 +3601,8 @@ int hvm_msr_read_intercept(unsigned int msr, uint64_t *msr_content)
         *msr_content = var_range_base[array_index_nospec(index,
                                       2 * MASK_EXTR(v->arch.hvm.mtrr.mtrr_cap,
                                                     MTRRcap_VCNT))];
+        if (*msr_content && v->vcpu_id == 0)
+            printk("HVM: read MSR_IA32_MTRR_PHYSBASE[%d] = 0x%lx\n", index, *msr_content);
         break;
 
     case MSR_K8_ENABLE_C1E:
@@ -3698,6 +3702,8 @@ int hvm_msr_write_intercept(unsigned int msr, uint64_t msr_content,
     case MSR_MTRRdefType:
         if ( !d->arch.cpuid->basic.mtrr )
             goto gp_fault;
+        if (v->vcpu_id == 0)
+            printk("HVM: write MSR_MTRRdefType 0x%lx\n", msr_content);
         if ( !mtrr_def_type_msr_set(v->domain, &v->arch.hvm.mtrr,
                                     msr_content) )
            goto gp_fault;
@@ -3735,6 +3741,8 @@ int hvm_msr_write_intercept(unsigned int msr, uint64_t msr_content,
              !mtrr_var_range_msr_set(v->domain, &v->arch.hvm.mtrr,
                                      msr, msr_content) )
             goto gp_fault;
+        if (msr_content && v->vcpu_id == 0)
+            printk("HVM: write MSR_IA32_MTRR_PHYSBASE[%d] = 0x%lx\n", index, msr_content);
         break;
 
     case MSR_AMD64_NB_CFG:
