@@ -530,8 +530,6 @@ void mtrr_set(
     <base> The base address of the region.
     <size> The size of the region. If this is 0 the region is disabled.
     <type> The type of the region.
-    <do_safe> If true, do the change safely. If false, safety measures should
-    be done externally.
     [RETURNS] Nothing.
 */
 {
